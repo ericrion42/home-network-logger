@@ -5,6 +5,9 @@
 GREEN = "\033[92m"
 RESET = "\033[0m"
 ORANGE = "\033[38;5;208m"
+YELLOW = "\033[93m"
+
+
 
 # Print a test message
 print(f"{GREEN}[SUCCESS] Environment Initialized. Scanner is ready to build.{RESET}")
@@ -37,6 +40,17 @@ scan_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 # Print an orange header showing when this scan ran and how many devices were found
 print(f"{ORANGE}--- Scan completed at {scan_time} | {len(answered_devices)} devices found ---{RESET}")
 
+# Build a list of every MAC address we've logged in previous scans
+known_macs = set()
+
+# Only try reading the file if it actually exists
+if os.path.isfile(LOG_FILE):
+    with open(LOG_FILE, mode="r", newline="") as existing_file:
+        reader = csv.reader(existing_file)
+        next(reader, None) # Skip header row
+        for row in reader:
+            known_macs.add(row[2])
+
 # Check if the log file already exists
 file_already_exists = os.path.isfile(LOG_FILE)
 
@@ -53,8 +67,11 @@ with open(LOG_FILE, mode="a", newline="") as file:
         ip = received_packet.psrc
         mac = received_packet.hwsrc
 
-        # Print to terminal
-        print(f"IP: {ip}    MAC: {mac}")
+        # Check if this MAC address has never appeared before
+        if mac not in known_macs:
+            print(f"{YELLOW}[NEW DEVICE] IP: {ip}    MAC: {mac}{RESET}")
+        else:
+            print(f"IP: {ip}     MAC: {mac}")
 
         # Write the same info as a row in the CSV file
         writer.writerow([scan_time, ip, mac])
