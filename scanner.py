@@ -8,20 +8,25 @@ ORANGE = "\033[38;5;208m"
 YELLOW = "\033[93m"
 RED = "\033[91m"
 
-
-
 # Print a test message
 print(f"{GREEN}[SUCCESS] Environment Initialized. Scanner is ready to build.{RESET}")
 
 # Import scapy's tools for building and sending ARP requests
 from scapy.all import ARP, Ether, srp
 from datetime import datetime
+from mac_vendor_lookup import MacLookup
 import csv
 import os
 
 # Define the network range we want to scan.
 TARGET_IP_RANGE = "192.168.1.0/24"
 LOG_FILE = "network_log.csv"
+
+# Create a lookup tool that can turn MAC addresses into vendor/manufacturer names.
+mac_lookup = MacLookup()
+
+# Download the vendor database if we don't have it cached locally.
+mac_lookup.update_vendors()
 
 # Build ARP request packet
 arp_request = ARP(pdst=TARGET_IP_RANGE)
@@ -33,7 +38,6 @@ ether_frame = Ether(dst="ff:ff:ff:ff:ff:ff")
 packet = ether_frame / arp_request
 
 # Send the packet and capture the responses.
-# answered_devices, unanswered_devices = srp(packet, timeout=2, verbose=False)
 try:
     answered_devices, unanswered_devices = srp(packet, timeout=2, verbose=False)
 except PermissionError:
@@ -66,26 +70,28 @@ with open(LOG_FILE, mode="a", newline="") as file:
 
     # Only write the header row if this is a brand new file
     if not file_already_exists:
-        writer.writerow(["Timestamp", "IP Address", "MAC Address"])
+        writer.writerow(["Timestamp", "IP Address", "MAC Address", "Vendor"])
 
     # Loop through every device that responded to ARP request
     for sent_packet, received_packet in answered_devices:
         ip = received_packet.psrc
         mac = received_packet.hwsrc
 
-        # Check if this MAC address has never appeared before
+        # Try to look up manufacturer/vendor name for this MAC address
+        try: 
+            vendor = mac_lookup.lookup(mac)
+        except Exception:
+            vendor = "Unknown"
+
+
+        # Check if this MAC address has never appeared in any previous scan
         if mac not in known_macs:
-            print(f"{YELLOW}[NEW DEVICE] IP: {ip}    MAC: {mac}{RESET}")
+            print(f"{YELLOW}[NEW DEVICE] IP: {ip}|MAC: {mac}|Vendor: {vendor}{RESET}")
         else:
-            print(f"IP: {ip}     MAC: {mac}")
+            print(f"IP: {ip}|MAC: {mac}|Vendor: {vendor}")
 
         # Write the same info as a row in the CSV file
-        writer.writerow([scan_time, ip, mac])
-
-
-
-
-
+        writer.writerow([scan_time, ip, mac, vendor])
 
 
 
