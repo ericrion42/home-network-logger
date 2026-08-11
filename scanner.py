@@ -6,6 +6,7 @@ GREEN = "\033[92m"
 RESET = "\033[0m"
 ORANGE = "\033[38;5;208m"
 YELLOW = "\033[93m"
+RED = "\033[91m"
 
 
 
@@ -32,7 +33,12 @@ ether_frame = Ether(dst="ff:ff:ff:ff:ff:ff")
 packet = ether_frame / arp_request
 
 # Send the packet and capture the responses.
-answered_devices, unanswered_devices = srp(packet, timeout=2, verbose=False)
+# answered_devices, unanswered_devices = srp(packet, timeout=2, verbose=False)
+try:
+    answered_devices, unanswered_devices = srp(packet, timeout=2, verbose=False)
+except PermissionError:
+    print(f"{RED}[ERROR] Permission denied. Please run this script with elevated privileges (e.g., using 'sudo').{RESET}")
+    exit(1)
 
 # Capture the current dte and time as soon as the scan finishes
 scan_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
